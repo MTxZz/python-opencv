@@ -1,19 +1,19 @@
+
 import cv2
 import numpy as np
 
+#imgPath = 'demo5.jpeg'#5, 有明显的水印——先去水印再分割
+#imgPath = 'demo12.jpeg'#8/12/13/17, 板件上有大块的白色区域——2、区域分裂合并分割
+#imgPath = 'demo19.jpeg'#2/9/19, 背景色彩太过丰富
+imgPath = 'demo9.jpeg'#普通图片直接用这种方法分割就可以
 
-imgPath = 'demo1.jpeg'
+imgRoot = cv2.imread(imgPath)
 
-#图像切割
-#一、图像预处理：
-##1. 获取图像：
-img1 = cv2.imread(imgPath)
-##2. 图像增强
-#
-############################################################
-###(1). 直方图增强——直方图均衡->这里把多种直方图均衡方法放到一个函数里#
-###########################################################
-#####(a). 图像归一化
+#一、图像变换——伽马变换
+
+#转灰度
+img1 = cv2.cvtColor(imgRoot, cv2.COLOR_BGR2GRAY)
+
 fi = img1 / 255.0
 #####(b). 伽马变换
 gamma = 2
@@ -21,16 +21,14 @@ img = np.power(fi, gamma)
 cv2.imshow("img", img1)
 cv2.imshow("out", img)
 img = np.uint8(np.clip((1.5*img1 + 15), 0, 255))
-#####################################
-###(2). 图像平滑化->多种方法放到一个函数里#
-####################################
-pass
+#二、图像转灰度——直方图增强——然后图像平滑化
 
-################################################################
-#二、转换灰度并去噪声——滤波处理-高斯滤波/其他滤波方法->多种方法放到一个函数里#
-################################################################
-gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-gray = cv2.GaussianBlur(gray, (1, 1), 0)
+#直方图——二插法
+clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+img = clahe.apply(img)
+
+#平滑化——高斯滤波
+gray = cv2.GaussianBlur(img, (11, 11), 0)
 cv2.imshow("gray", gray)
 
 ####################################################
@@ -57,8 +55,10 @@ cv2.imshow("blurred", blurred)
 kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (25,25))
 closed = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
 cv2.imshow("closed1", closed)
-closed = cv2.erode(closed, None, iterations = 4)
-closed = cv2.dilate(closed, None, iterations = 4)
+#图像开运算
+closed = cv2.dilate(closed, None, iterations = 6)#膨胀
+closed = cv2.erode(closed, None, iterations = 1)#腐蚀
+
 cv2.imshow("closed", closed)
 ###########################################
 #六、寻找轮廓——试试其他算法->多种方法放到一个函数里#
@@ -84,13 +84,13 @@ cv2.imshow("closed", closed)
 )
 c = sorted(cnts, key = cv2.contourArea, reverse = True)[0]
 rect = cv2.minAreaRect(c)
-#rect = cv2.boundingRect(c)
+
 box = np.int0(cv2.boxPoints(rect))
-draw_img = cv2.drawContours(img.copy(), [box], -1, (0,0,255), 3)
+draw_img = cv2.drawContours(imgRoot.copy(), [box], -1, (0,255,255), 3)
 cv2.imshow("draw_img", draw_img)
 cv2.imwrite('draw_img.jpeg', draw_img)
 
 cv2.waitKey()
 cv2.destroyAllWindows()
-#七、 切割图像：
+#七、 切割图像：#多种切割方法——写成一个函数
 pass
